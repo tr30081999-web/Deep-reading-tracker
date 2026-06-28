@@ -8,13 +8,13 @@
 <meta name="theme-color" content="#3d6b4f">
 
 <!-- Favicons -->
-<link rel="icon" type="image/x-icon" href="assets/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="./assets/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon-16.png">
+<link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
 
 <!-- PWA manifest -->
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="./manifest.json">
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
@@ -189,7 +189,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-logo" href="#">
-      <img src="assets/logo.jpg" alt="Deep Reading">
+      <img src="./assets/logo.jpg" alt="Deep Reading">
       <span class="nav-logo-text">Deep Reading</span>
     </a>
     <button class="nav-tab active" onclick="switchTab('track', this)">📖 Track</button>
@@ -586,7 +586,7 @@
   // Register Service Worker (PWA offline support)
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/Deep-reading-tracker/sw.js', { scope: '/Deep-reading-tracker/' }).catch(() => {});
+      navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(() => {});
     });
   }
 </script>
