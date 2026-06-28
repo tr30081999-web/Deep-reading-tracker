@@ -1,4 +1,4 @@
-const CACHE_NAME = 'deep-reading-v3';
+const CACHE_NAME = 'deep-reading-v4';
 const ASSETS = [
   './',
   './index.html',

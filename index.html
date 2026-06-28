@@ -31,7 +31,7 @@
   .nav { background: white; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
   .nav-inner { max-width: 680px; margin: 0 auto; padding: 0 12px; display: flex; align-items: center; gap: 0; }
   .nav-logo { display: flex; align-items: center; gap: 7px; margin-right: 4px; padding: 8px 0; text-decoration: none; flex-shrink: 0; }
-  .nav-logo img { width: 24px; height: 24px; object-fit: contain; filter: brightness(0.15); flex-shrink: 0; }
+  .nav-logo img { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; border-radius: 7px; background: var(--paper); border: 1px solid var(--border); padding: 2px; }
   .nav-logo-text { font-family: 'Libre Baskerville', serif; font-size: 12px; color: var(--ink); font-weight: 400; white-space: nowrap; }
   .nav-tab { padding: 14px 11px; font-size: 13px; font-weight: 500; color: var(--muted); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; font-family: 'Inter', sans-serif; white-space: nowrap; }
   .nav-tab.active { color: var(--ink); border-bottom-color: var(--accent); }
@@ -189,7 +189,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-logo" href="#">
-      <img src="./logo.jpg" alt="Deep Reading">
+      <img src="./icon-192.png" alt="Deep Reading">
       <span class="nav-logo-text">Deep Reading</span>
     </a>
     <button class="nav-tab active" onclick="switchTab('track', this)">📖 Track</button>
