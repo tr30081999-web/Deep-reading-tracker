@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Reading Tracker</title>
+<meta name="description" content="Hệ thống theo dõi thói quen đọc sách sâu — track habit, ghi insight, phân tích pattern.">
+<meta name="theme-color" content="#3d6b4f">
+
+<!-- Favicons -->
+<link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+<!-- PWA manifest -->
+<link rel="manifest" href="manifest.json">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #1a1a18; --paper: #f7f4ee; --paper-dark: #ede9e0;
+    --accent: #3d6b4f; --accent-light: #e8f0eb;
+    --muted: #8a8278; --warn: #b85c2a; --border: #d4cfc5;
+    --read-color: #3d6b4f; --listen-color: #4a5fa8; --listen-bg: #eaecf5;
+  }
+  body { background: var(--paper); color: var(--ink); font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.6; min-height: 100vh; }
+
+  /* NAV */
+  .nav { background: white; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
+  .nav-inner { max-width: 680px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; gap: 0; }
+  .nav-logo { display: flex; align-items: center; gap: 10px; margin-right: 16px; padding: 10px 0; text-decoration: none; }
+  .nav-logo img { width: 28px; height: 28px; object-fit: contain; filter: brightness(0.15); }
+  .nav-logo-text { font-family: 'Libre Baskerville', serif; font-size: 13px; color: var(--ink); font-weight: 400; white-space: nowrap; }
+  .nav-tab { padding: 14px 16px; font-size: 13px; font-weight: 500; color: var(--muted); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; font-family: 'Inter', sans-serif; }
+  .nav-tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .nav-tab:hover:not(.active) { color: var(--ink); }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+  .app { max-width: 680px; margin: 0 auto; padding: 20px 20px 80px; }
+
+  /* HEADER */
+  .header { padding: 24px 0 20px; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
+  .header-eyebrow { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .header h1 { font-family: 'Libre Baskerville', serif; font-size: 26px; font-weight: 400; line-height: 1.2; }
+  .header-sub { font-size: 13px; color: var(--muted); margin-top: 5px; }
+
+  /* STREAK */
+  .streak-row { display: flex; gap: 12px; margin-bottom: 28px; }
+  .streak-card { flex: 1; background: white; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .streak-card.accent { background: var(--accent); border-color: var(--accent); color: white; }
+  .streak-card.accent .streak-label { color: rgba(255,255,255,0.7); }
+  .streak-num { font-family: 'Libre Baskerville', serif; font-size: 32px; font-weight: 700; line-height: 1; }
+  .streak-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* WEEK GRID */
+  .section-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 28px; }
+  .day-cell { aspect-ratio: 1; border-radius: 6px; border: 1.5px solid var(--border); background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+  .day-cell.today { border-color: var(--ink); }
+  .day-name { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .day-dots { display: flex; gap: 2px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
+  .dot.read { background: var(--read-color); }
+  .dot.listen { background: var(--listen-color); }
+  .day-cell.today .day-name { color: var(--ink); font-weight: 600; }
+
+  /* LOG CARD */
+  .log-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 22px; margin-bottom: 24px; }
+  .log-card h2 { font-family: 'Libre Baskerville', serif; font-size: 17px; font-weight: 400; margin-bottom: 18px; }
+  .session-type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+  .type-btn { padding: 10px; border: 1.5px solid var(--border); border-radius: 7px; background: white; cursor: pointer; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--muted); transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .type-btn.active-read { border-color: var(--read-color); background: var(--accent-light); color: var(--read-color); font-weight: 500; }
+  .type-btn.active-listen { border-color: var(--listen-color); background: var(--listen-bg); color: var(--listen-color); font-weight: 500; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .field input, .field textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 10px 14px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--ink); background: var(--paper); outline: none; transition: border-color 0.15s; resize: none; }
+  .field input:focus, .field textarea:focus { border-color: var(--ink); background: white; }
+  .field textarea { min-height: 80px; }
+  .mindstate-group { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill { padding: 5px 12px; border: 1.5px solid var(--border); border-radius: 20px; font-size: 12px; cursor: pointer; color: var(--muted); background: white; transition: all 0.12s; user-select: none; }
+  .pill.selected { border-color: var(--accent); background: var(--accent-light); color: var(--read-color); }
+  .depth-row { display: flex; align-items: center; gap: 12px; }
+  .depth-row input[type=range] { flex: 1; padding: 0; border: none; background: none; accent-color: var(--accent); }
+  .depth-val { font-family: 'Libre Baskerville', serif; font-size: 20px; min-width: 28px; text-align: right; color: var(--accent); }
+  .depth-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .save-btn { width: 100%; padding: 12px; background: var(--ink); color: var(--paper); border: none; border-radius: 7px; font-size: 14px; font-family: 'Inter', sans-serif; font-weight: 500; cursor: pointer; transition: opacity 0.15s; margin-top: 4px; }
+  .save-btn:hover { opacity: 0.85; }
+
+  /* FEED */
+  .feed-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .feed-count { font-size: 12px; color: var(--muted); }
+  .entry-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 10px; position: relative; }
+  .entry-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .entry-book { font-family: 'Libre Baskerville', serif; font-size: 15px; font-style: italic; }
+  .entry-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: 12px; }
+  .entry-type-badge { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; font-weight: 500; }
+  .badge-read { background: var(--accent-light); color: var(--read-color); }
+  .badge-listen { background: var(--listen-bg); color: var(--listen-color); }
+  .entry-date { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .entry-insight { font-size: 14px; color: var(--ink); line-height: 1.65; margin-bottom: 10px; border-left: 2px solid var(--border); padding-left: 12px; }
+  .entry-bottom { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .entry-depth { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+  .depth-bar { width: 48px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .depth-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+  .entry-mindstate { font-size: 11px; color: var(--muted); }
+  .delete-btn { position: absolute; top: 14px; right: 14px; background: none; border: none; cursor: pointer; font-size: 14px; color: var(--border); transition: color 0.12s; }
+  .delete-btn:hover { color: var(--warn); }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; border: 1.5px dashed var(--border); border-radius: 10px; }
+  .empty-state .empty-icon { font-size: 32px; margin-bottom: 10px; }
+
+  /* DASHBOARD */
+  .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+  .dash-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .dash-card.full { grid-column: 1 / -1; }
+  .dash-card h3 { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .dash-big { font-family: 'Libre Baskerville', serif; font-size: 40px; font-weight: 700; color: var(--accent); line-height: 1; }
+  .dash-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 80px; margin-top: 8px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .bar { width: 100%; background: var(--accent-light); border-radius: 3px 3px 0 0; min-height: 3px; }
+  .bar.has-listen { background: linear-gradient(to top, var(--listen-bg) 40%, var(--accent-light) 40%); }
+  .bar-label { font-size: 9px; color: var(--muted); text-align: center; }
+  .bar-val { font-size: 9px; color: var(--muted); }
+  .mindstate-bar-row { margin-bottom: 8px; }
+  .mindstate-bar-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+  .mindstate-bar-label span:last-child { color: var(--muted); }
+  .mbar-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .mbar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+  .heatmap { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .hm-cell { aspect-ratio: 1; border-radius: 3px; background: var(--border); }
+  .hm-cell.d1 { background: #c8ddd0; }
+  .hm-cell.d2 { background: #8cbba0; }
+  .hm-cell.d3 { background: var(--accent); }
+  .hm-cell.listen-only { background: #b0bde0; }
+  .hm-cell.both { background: var(--ink); }
+  .hm-legend { display: flex; gap: 12px; margin-top: 8px; font-size: 11px; color: var(--muted); align-items: center; flex-wrap: wrap; }
+  .hm-legend-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 4px; }
+  .book-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .book-row:last-child { border-bottom: none; }
+  .book-title-sm { font-family: 'Libre Baskerville', serif; font-size: 13px; font-style: italic; }
+  .book-stats { font-size: 11px; color: var(--muted); text-align: right; }
+
+  /* DATA PAGE */
+  .data-section { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 22px; margin-bottom: 20px; }
+  .data-section h2 { font-family: 'Libre Baskerville', serif; font-size: 17px; font-weight: 400; margin-bottom: 6px; }
+  .data-section p { font-size: 13px; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn { padding: 10px 18px; border-radius: 7px; border: 1.5px solid var(--border); font-size: 13px; font-family: 'Inter', sans-serif; cursor: pointer; font-weight: 500; transition: all 0.15s; }
+  .btn-primary { background: var(--ink); color: white; border-color: var(--ink); }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-secondary { background: white; color: var(--ink); }
+  .btn-secondary:hover { background: var(--paper-dark); }
+  .btn-warn { background: white; color: var(--warn); border-color: var(--warn); }
+  .btn-warn:hover { background: #fdf0ea; }
+  .import-zone { border: 2px dashed var(--border); border-radius: 8px; padding: 28px; text-align: center; color: var(--muted); font-size: 13px; cursor: pointer; transition: all 0.15s; margin-top: 12px; }
+  .import-zone:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .import-zone input { display: none; }
+  .data-preview { background: var(--paper); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; font-size: 12px; font-family: monospace; color: var(--muted); margin-top: 12px; max-height: 120px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+  .period-selector { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .period-btn { padding: 6px 14px; border: 1.5px solid var(--border); border-radius: 20px; font-size: 12px; font-family: 'Inter', sans-serif; cursor: pointer; background: white; color: var(--muted); transition: all 0.12s; }
+  .period-btn.active { border-color: var(--accent); background: var(--accent-light); color: var(--read-color); font-weight: 500; }
+  .danger-zone { border-color: #f0d4c8; background: #fdf8f5; }
+  .danger-zone h2 { color: var(--warn); }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--ink); color: white; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; transition: all 0.3s ease; z-index: 100; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* INSTALL BANNER */
+  .install-banner { background: var(--accent-light); border: 1px solid var(--accent); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .install-banner p { font-size: 13px; color: var(--accent); }
+  .install-banner button { padding: 7px 14px; background: var(--accent); color: white; border: none; border-radius: 6px; font-size: 12px; font-family: 'Inter', sans-serif; cursor: pointer; white-space: nowrap; }
+  .install-banner .dismiss { background: none; color: var(--muted); padding: 4px; font-size: 16px; }
+
+  @media (max-width: 480px) {
+    .dash-grid { grid-template-columns: 1fr; }
+    .streak-num { font-size: 26px; }
+    .nav-tab { padding: 12px 10px; font-size: 12px; }
+    .nav-logo-text { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="#">
+      <img src="assets/logo.jpg" alt="Deep Reading">
+      <span class="nav-logo-text">Deep Reading</span>
+    </a>
+    <button class="nav-tab active" onclick="switchTab('track', this)">📖 Track</button>
+    <button class="nav-tab" onclick="switchTab('dashboard', this)">📊 Dashboard</button>
+    <button class="nav-tab" onclick="switchTab('data', this)">💾 Dữ liệu</button>
+  </div>
+</nav>
+
+<!-- ===== TRACK ===== -->
+<div class="page active" id="page-track">
+<div class="app">
+  <div id="installBanner" style="display:none" class="install-banner">
+    <p>📱 Thêm vào màn hình chính để dùng như app</p>
+    <button onclick="installPWA()">Cài đặt</button>
+    <button class="dismiss" onclick="document.getElementById('installBanner').style.display='none'">✕</button>
+  </div>
+
+  <header class="header">
+    <div class="header-eyebrow">Hệ thống đọc sâu</div>
+    <h1>Deep Reading Tracker</h1>
+    <div class="header-sub">Đọc tò mò — không áp lực phải nhớ</div>
+  </header>
+
+  <div class="streak-row">
+    <div class="streak-card accent"><div class="streak-num" id="streakNum">0</div><div class="streak-label">ngày streak</div></div>
+    <div class="streak-card"><div class="streak-num" id="totalSessions">0</div><div class="streak-label">buổi hoàn thành</div></div>
+    <div class="streak-card"><div class="streak-num" id="totalInsights">0</div><div class="streak-label">insight đã ghi</div></div>
+  </div>
+
+  <div class="section-label">7 ngày gần nhất</div>
+  <div class="week-grid" id="weekGrid"></div>
+
+  <div class="log-card">
+    <h2>Ghi lại buổi hôm nay</h2>
+    <div class="session-type-toggle">
+      <button class="type-btn active-read" id="btnRead" onclick="setType('read')">📖 Đọc sách</button>
+      <button class="type-btn" id="btnListen" onclick="setType('listen')">🎧 Nghe sách</button>
+    </div>
+    <div class="field"><label>Tên sách</label><input type="text" id="bookName" placeholder="Cuốn sách bạn đang đọc / nghe..."></div>
+    <div class="field"><label>Thời gian (phút)</label><input type="number" id="duration" placeholder="25" min="1" max="300"></div>
+    <div class="field">
+      <label>Trạng thái tâm trí khi bắt đầu</label>
+      <div class="mindstate-group">
+        <span class="pill" onclick="togglePill(this)" data-val="tò mò">🔍 tò mò</span>
+        <span class="pill" onclick="togglePill(this)" data-val="tập trung">⚡ tập trung</span>
+        <span class="pill" onclick="togglePill(this)" data-val="mệt mỏi">😴 mệt mỏi</span>
+        <span class="pill" onclick="togglePill(this)" data-val="lo lắng">😟 lo lắng</span>
+        <span class="pill" onclick="togglePill(this)" data-val="bình thường">😐 bình thường</span>
+        <span class="pill" onclick="togglePill(this)" data-val="hứng khởi">✨ hứng khởi</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Độ sâu của buổi này</label>
+      <div class="depth-row">
+        <input type="range" id="depthSlider" min="1" max="5" value="3" oninput="document.getElementById('depthDisplay').textContent=this.value">
+        <div class="depth-val" id="depthDisplay">3</div>
+      </div>
+      <div class="depth-labels"><span>Hời hợt</span><span>Trung bình</span><span>Rất sâu</span></div>
+    </div>
+    <div class="field"><label>Insight — điều gì còn đọng lại? (viết tự do)</label><textarea id="insight" placeholder="Đóng sách lại và viết bất cứ điều gì hiện ra trong đầu..."></textarea></div>
+    <div class="field"><label>Kết nối với cuộc sống (không bắt buộc)</label><textarea id="connection" placeholder="Có điều gì trong sách chạm tới cuộc sống bạn không?" style="min-height:60px"></textarea></div>
+    <button class="save-btn" onclick="saveSession()">Lưu buổi đọc</button>
+  </div>
+
+  <div>
+    <div class="feed-header">
+      <div class="section-label" style="margin-bottom:0">Nhật ký insight</div>
+      <div class="feed-count" id="feedCount"></div>
+    </div>
+    <div id="entryFeed"></div>
+  </div>
+</div>
+</div>
+
+<!-- ===== DASHBOARD ===== -->
+<div class="page" id="page-dashboard">
+<div class="app">
+  <header class="header">
+    <div class="header-eyebrow">Tổng kết</div>
+    <h1>Dashboard</h1>
+    <div class="header-sub" id="dashPeriodLabel"></div>
+  </header>
+  <div class="period-selector">
+    <button class="period-btn active" onclick="setPeriod(7,this)">7 ngày</button>
+    <button class="period-btn" onclick="setPeriod(30,this)">30 ngày</button>
+    <button class="period-btn" onclick="setPeriod(90,this)">3 tháng</button>
+    <button class="period-btn" onclick="setPeriod(0,this)">Tất cả</button>
+  </div>
+  <div class="dash-grid">
+    <div class="dash-card"><h3>Tổng buổi</h3><div class="dash-big" id="dTotalSessions">—</div><div class="dash-sub" id="dSessionBreak">— đọc · — nghe</div></div>
+    <div class="dash-card"><h3>Thời gian đọc</h3><div class="dash-big" id="dTotalTime">—</div><div class="dash-sub">phút</div></div>
+    <div class="dash-card"><h3>Độ sâu trung bình</h3><div class="dash-big" id="dAvgDepth">—</div><div class="dash-sub">/ 5</div></div>
+    <div class="dash-card"><h3>Ngày có hoạt động</h3><div class="dash-big" id="dActiveDays">—</div><div class="dash-sub" id="dConsistency"></div></div>
+    <div class="dash-card full"><h3>Hoạt động theo tuần</h3><div class="bar-chart" id="barChart"></div></div>
+    <div class="dash-card full"><h3>Heatmap 30 ngày gần nhất</h3><div class="heatmap" id="heatmap"></div><div class="hm-legend"><span><span class="hm-legend-dot" style="background:#c8ddd0"></span>Đọc ít</span><span><span class="hm-legend-dot" style="background:var(--accent)"></span>Đọc sâu</span><span><span class="hm-legend-dot" style="background:#b0bde0"></span>Nghe</span><span><span class="hm-legend-dot" style="background:var(--ink)"></span>Cả hai</span></div></div>
+    <div class="dash-card full"><h3>Trạng thái tâm trí → Độ sâu</h3><div id="mindstateDepth"></div></div>
+    <div class="dash-card full"><h3>Sách đang đọc / đã đọc</h3><div id="bookList"></div></div>
+  </div>
+</div>
+</div>
+
+<!-- ===== DATA ===== -->
+<div class="page" id="page-data">
+<div class="app">
+  <header class="header">
+    <div class="header-eyebrow">Quản lý dữ liệu</div>
+    <h1>Dữ liệu & Backup</h1>
+    <div class="header-sub">Export để phân tích · Import để restore</div>
+  </header>
+
+  <div class="data-section">
+    <h2>📤 Export toàn bộ dữ liệu</h2>
+    <p>Tải xuống file JSON để backup hoặc import vào thiết bị khác. CSV để mở bằng Excel / Google Sheets.</p>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="exportJSON()">Tải JSON (backup)</button>
+      <button class="btn btn-secondary" onclick="exportCSV()">Tải CSV (Excel)</button>
+    </div>
+  </div>
+
+  <div class="data-section">
+    <h2>📋 Export báo cáo insight</h2>
+    <p>File text với toàn bộ insight — dễ paste vào Claude hoặc Notion để phân tích tổng quan sau mỗi tháng.</p>
+    <div class="period-selector" id="exportPeriodSel">
+      <button class="period-btn active" onclick="setExportPeriod(30,this)">30 ngày</button>
+      <button class="period-btn" onclick="setExportPeriod(90,this)">3 tháng</button>
+      <button class="period-btn" onclick="setExportPeriod(0,this)">Tất cả</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="exportInsightReport()">Tải báo cáo (.txt)</button>
+      <button class="btn btn-secondary" onclick="previewInsightReport()">Xem trước</button>
+    </div>
+    <div class="data-preview" id="insightPreview" style="display:none"></div>
+  </div>
+
+  <div class="data-section">
+    <h2>📥 Import / Restore</h2>
+    <p>Chọn file JSON đã export. Dữ liệu sẽ được <strong>gộp</strong> với dữ liệu hiện có — không ghi đè, không trùng lặp.</p>
+    <div class="import-zone" onclick="document.getElementById('importFile').click()">
+      <input type="file" id="importFile" accept=".json" onchange="handleImport(event)">
+      <div style="font-size:24px;margin-bottom:8px">📂</div>
+      Nhấn để chọn file JSON
+    </div>
+    <div class="data-preview" id="importPreview" style="display:none"></div>
+    <div class="btn-row" id="importConfirmRow" style="display:none;margin-top:12px">
+      <button class="btn btn-primary" onclick="confirmImport()">Xác nhận import</button>
+      <button class="btn btn-secondary" onclick="cancelImport()">Huỷ</button>
+    </div>
+  </div>
+
+  <div class="data-section">
+    <h2>📊 Tóm tắt số liệu</h2>
+    <p>Số liệu tổng hợp dạng text — copy paste vào Claude để phân tích pattern đọc sách sau một tháng.</p>
+    <button class="btn btn-secondary" onclick="generateStatsSummary()">Tạo tóm tắt</button>
+    <div class="data-preview" id="statsSummary" style="display:none"></div>
+    <div id="copyStatsBtnRow" style="display:none;margin-top:10px">
+      <button class="btn btn-secondary" onclick="copyStats()">Copy vào clipboard</button>
+    </div>
+  </div>
+
+  <div class="data-section danger-zone">
+    <h2>⚠️ Xoá toàn bộ dữ liệu</h2>
+    <p>Không thể hoàn tác. Hãy export backup trước.</p>
+    <div class="btn-row"><button class="btn btn-warn" onclick="clearAllData()">Xoá tất cả</button></div>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const DAYS = ['CN','T2','T3','T4','T5','T6','T7'];
+  let sessionType = 'read';
+  let selectedPills = new Set();
+  let sessions = JSON.parse(localStorage.getItem('deepReading_sessions') || '[]');
+  let dashPeriod = 7;
+  let exportPeriod = 30;
+  let importBuffer = null;
+  let deferredPrompt = null;
+
+  // PWA install
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); deferredPrompt = e;
+    document.getElementById('installBanner').style.display = 'flex';
+  });
+  function installPWA() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; document.getElementById('installBanner').style.display = 'none'; });
+  }
+
+  // NAV
+  function switchTab(tab, el) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('page-' + tab).classList.add('active');
+    el.classList.add('active');
+    if (tab === 'dashboard') renderDashboard();
+  }
+
+  // TRACK
+  function setType(t) {
+    sessionType = t;
+    document.getElementById('btnRead').className = 'type-btn' + (t==='read'?' active-read':'');
+    document.getElementById('btnListen').className = 'type-btn' + (t==='listen'?' active-listen':'');
+  }
+  function togglePill(el) {
+    const v = el.dataset.val;
+    if (selectedPills.has(v)) { selectedPills.delete(v); el.classList.remove('selected'); }
+    else { selectedPills.add(v); el.classList.add('selected'); }
+  }
+  function saveSession() {
+    const book = document.getElementById('bookName').value.trim();
+    const dur = parseInt(document.getElementById('duration').value) || 0;
+    const insight = document.getElementById('insight').value.trim();
+    const connection = document.getElementById('connection').value.trim();
+    const depth = parseInt(document.getElementById('depthSlider').value);
+    if (!book) { showToast('Nhập tên sách nhé!'); return; }
+    if (!insight) { showToast('Ghi ít nhất một dòng insight nhé!'); return; }
+    sessions.unshift({ id: Date.now(), date: new Date().toISOString().split('T')[0], type: sessionType, book, dur, insight, connection, depth, mindstate: [...selectedPills] });
+    persist();
+    ['bookName','duration','insight','connection'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('depthSlider').value = 3;
+    document.getElementById('depthDisplay').textContent = '3';
+    selectedPills.clear();
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('selected'));
+    setType('read');
+    renderTrack();
+    showToast('Buổi đọc đã được lưu ✓');
+  }
+  function deleteSession(id) {
+    if (!confirm('Xoá buổi đọc này?')) return;
+    sessions = sessions.filter(s => s.id !== id);
+    persist(); renderTrack(); showToast('Đã xoá');
+  }
+  function persist() { localStorage.setItem('deepReading_sessions', JSON.stringify(sessions)); }
+  function calcStreak() {
+    if (!sessions.length) return 0;
+    const dates = [...new Set(sessions.map(s => s.date))].sort().reverse();
+    let streak = 0; let check = new Date();
+    for (let i = 0; i < 365; i++) {
+      if (dates.includes(check.toISOString().split('T')[0])) { streak++; check.setDate(check.getDate()-1); }
+      else break;
+    }
+    return streak;
+  }
+  function renderTrack() {
+    document.getElementById('streakNum').textContent = calcStreak();
+    document.getElementById('totalSessions').textContent = sessions.length;
+    document.getElementById('totalInsights').textContent = sessions.filter(s => s.insight).length;
+    const grid = document.getElementById('weekGrid'); grid.innerHTML = '';
+    const today = new Date();
+    const sd = {};
+    sessions.forEach(s => { if (!sd[s.date]) sd[s.date] = {}; sd[s.date][s.type] = true; });
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today); d.setDate(d.getDate()-i);
+      const key = d.toISOString().split('T')[0]; const data = sd[key] || {};
+      const cell = document.createElement('div');
+      cell.className = 'day-cell' + (i===0?' today':'');
+      cell.innerHTML = `<span class="day-name">${DAYS[d.getDay()]}</span><div class="day-dots"><div class="dot ${data.read?'read':''}"></div><div class="dot ${data.listen?'listen':''}"></div></div>`;
+      grid.appendChild(cell);
+    }
+    const feed = document.getElementById('entryFeed');
+    document.getElementById('feedCount').textContent = sessions.length ? `${sessions.length} buổi` : '';
+    if (!sessions.length) { feed.innerHTML = `<div class="empty-state"><div class="empty-icon">📖</div>Chưa có buổi đọc nào.<br>Ghi lại buổi đầu tiên!</div>`; return; }
+    feed.innerHTML = sessions.map(s => {
+      const pct=(s.depth/5)*100; const bc=s.type==='read'?'badge-read':'badge-listen';
+      const tl=s.type==='read'?'📖 Đọc':'🎧 Nghe';
+      const ds=new Date(s.date+'T12:00:00').toLocaleDateString('vi-VN',{day:'numeric',month:'short'});
+      const ms=(s.mindstate||[]).join(' · ');
+      return `<div class="entry-card"><button class="delete-btn" onclick="deleteSession(${s.id})">✕</button>
+        <div class="entry-top"><div class="entry-book">${s.book}</div><div class="entry-meta"><span class="entry-type-badge ${bc}">${tl}</span><span class="entry-date">${ds}</span></div></div>
+        <div class="entry-insight">${s.insight.replace(/\n/g,'<br>')}</div>
+        ${s.connection?`<div style="font-size:13px;color:var(--muted);margin-bottom:10px;font-style:italic">↳ ${s.connection}</div>`:''}
+        <div class="entry-bottom"><div class="entry-depth">Độ sâu <div class="depth-bar"><div class="depth-fill" style="width:${pct}%"></div></div>${s.depth}/5</div>${s.dur?`<div class="entry-mindstate">${s.dur}ph</div>`:''}${ms?`<div class="entry-mindstate">· ${ms}</div>`:''}</div></div>`;
+    }).join('');
+  }
+
+  // DASHBOARD
+  function setPeriod(p, el) {
+    dashPeriod = p;
+    document.querySelectorAll('#page-dashboard .period-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active'); renderDashboard();
+  }
+  function filterByPeriod(arr, days) {
+    if (!days) return arr;
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-days);
+    return arr.filter(s => s.date >= cutoff.toISOString().split('T')[0]);
+  }
+  function renderDashboard() {
+    const f = filterByPeriod(sessions, dashPeriod);
+    const reads=f.filter(s=>s.type==='read'); const listens=f.filter(s=>s.type==='listen');
+    const totalMin=f.reduce((a,s)=>a+(s.dur||0),0);
+    const avgDepth=f.length?(f.reduce((a,s)=>a+s.depth,0)/f.length).toFixed(1):'—';
+    const activeDays=new Set(f.map(s=>s.date)).size;
+    const pDays=dashPeriod||Math.max(1,activeDays);
+    const cons=dashPeriod?Math.round((activeDays/dashPeriod)*100):'—';
+    document.getElementById('dashPeriodLabel').textContent=(dashPeriod?`${dashPeriod} ngày gần nhất`:'Tất cả')+` · ${f.length} buổi`;
+    document.getElementById('dTotalSessions').textContent=f.length;
+    document.getElementById('dSessionBreak').textContent=`${reads.length} đọc · ${listens.length} nghe`;
+    document.getElementById('dTotalTime').textContent=totalMin||'—';
+    document.getElementById('dAvgDepth').textContent=avgDepth;
+    document.getElementById('dActiveDays').textContent=activeDays;
+    document.getElementById('dConsistency').textContent=dashPeriod?`${cons}% consistency`:'';
+    // bar chart
+    const bc=document.getElementById('barChart'); bc.innerHTML='';
+    const weeks=8; const weekData=[];
+    for(let w=weeks-1;w>=0;w--){
+      const s=new Date();s.setDate(s.getDate()-w*7-6);
+      const e=new Date();e.setDate(e.getDate()-w*7);
+      const inW=f.filter(x=>x.date>=s.toISOString().split('T')[0]&&x.date<=e.toISOString().split('T')[0]);
+      weekData.push({reads:inW.filter(x=>x.type==='read').length,listens:inW.filter(x=>x.type==='listen').length,total:inW.length,label:`T${weeks-w}`});
+    }
+    const maxV=Math.max(...weekData.map(w=>w.total),1);
+    weekData.forEach(w=>{
+      const col=document.createElement('div');col.className='bar-col';
+      const h=(w.total/maxV)*100;const hl=w.listens>0&&w.reads>0;
+      col.innerHTML=`<div class="bar-val">${w.total||''}</div><div class="bar${hl?' has-listen':''}" style="height:${Math.max(h,3)}%"></div><div class="bar-label">${w.label}</div>`;
+      bc.appendChild(col);
+    });
+    // heatmap
+    const hm=document.getElementById('heatmap');hm.innerHTML='';
+    const hsd={};sessions.forEach(s=>{if(!hsd[s.date])hsd[s.date]={read:0,listen:0,depth:0,count:0};hsd[s.date][s.type]++;hsd[s.date].depth+=s.depth;hsd[s.date].count++;});
+    for(let i=29;i>=0;i--){
+      const d=new Date();d.setDate(d.getDate()-i);
+      const key=d.toISOString().split('T')[0];const data=hsd[key];
+      const cell=document.createElement('div');let cls='';
+      if(data){const avg=data.depth/data.count;if(data.read>0&&data.listen>0)cls='both';else if(data.listen>0)cls='listen-only';else if(avg>=4)cls='d3';else if(avg>=3)cls='d2';else cls='d1';}
+      cell.className='hm-cell '+cls;cell.title=key+(data?` · ${data.count} buổi`:' · không có');hm.appendChild(cell);
+    }
+    // mindstate
+    const msel=document.getElementById('mindstateDepth');const mmap={};
+    f.forEach(s=>(s.mindstate||[]).forEach(m=>{if(!mmap[m])mmap[m]={total:0,count:0};mmap[m].total+=s.depth;mmap[m].count++;}));
+    const ents=Object.entries(mmap).sort((a,b)=>(b[1].total/b[1].count)-(a[1].total/a[1].count));
+    msel.innerHTML=ents.length?ents.map(([m,d])=>{const avg=(d.total/d.count).toFixed(1);const pct=(avg/5)*100;return`<div class="mindstate-bar-row"><div class="mindstate-bar-label"><span>${m}</span><span>${avg}/5 (${d.count} buổi)</span></div><div class="mbar-track"><div class="mbar-fill" style="width:${pct}%"></div></div></div>`;}).join(''):'<div style="font-size:13px;color:var(--muted)">Chưa có dữ liệu.</div>';
+    // books
+    const bel=document.getElementById('bookList');const books={};
+    f.forEach(s=>{if(!books[s.book])books[s.book]={sessions:0,totalMin:0,totalDepth:0,type:new Set()};books[s.book].sessions++;books[s.book].totalMin+=(s.dur||0);books[s.book].totalDepth+=s.depth;books[s.book].type.add(s.type);});
+    const sorted=Object.entries(books).sort((a,b)=>b[1].sessions-a[1].sessions);
+    bel.innerHTML=sorted.length?sorted.map(([t,d])=>{const avg=(d.totalDepth/d.sessions).toFixed(1);const types=[...d.type].map(x=>x==='read'?'📖':'🎧').join('');return`<div class="book-row"><div><div class="book-title-sm">${t}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${types}</div></div><div class="book-stats">${d.sessions} buổi · ${d.totalMin}ph<br>TB: ${avg}/5</div></div>`;}).join(''):'<div style="font-size:13px;color:var(--muted)">Chưa có dữ liệu.</div>';
+  }
+
+  // DATA
+  function setExportPeriod(p,el){exportPeriod=p;document.querySelectorAll('#exportPeriodSel .period-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');}
+  function exportJSON(){const data={exported_at:new Date().toISOString(),version:'1.0',total_sessions:sessions.length,sessions};download(JSON.stringify(data,null,2),`deep-reading-backup-${today()}.json`,'application/json');showToast('Đã tải JSON ✓');}
+  function exportCSV(){
+    const h=['id','date','type','book','duration_min','depth','mindstate','insight','connection'];
+    const rows=sessions.map(s=>[s.id,s.date,s.type,`"${(s.book||'').replace(/"/g,'""')}"`,s.dur||0,s.depth,`"${(s.mindstate||[]).join(', ')}"`,`"${(s.insight||'').replace(/"/g,'""').replace(/\n/g,' ')}"`,`"${(s.connection||'').replace(/"/g,'""').replace(/\n/g,' ')}"`]);
+    download([h.join(','),...rows.map(r=>r.join(','))].join('\n'),`deep-reading-${today()}.csv`,'text/csv;charset=utf-8;');showToast('Đã tải CSV ✓');
+  }
+  function buildInsightReport(days){
+    const f=filterByPeriod(sessions,days);
+    const totalMin=f.reduce((a,s)=>a+(s.dur||0),0);
+    const avgDepth=f.length?(f.reduce((a,s)=>a+s.depth,0)/f.length).toFixed(1):0;
+    let txt=`DEEP READING TRACKER — BÁO CÁO INSIGHT\nXuất lúc: ${new Date().toLocaleString('vi-VN')}\nKỳ: ${days?days+' ngày gần nhất':'Tất cả'}\n${'='.repeat(50)}\n\nTỔNG QUAN\n  Tổng buổi    : ${f.length} (${f.filter(s=>s.type==='read').length} đọc · ${f.filter(s=>s.type==='listen').length} nghe)\n  Thời gian    : ${totalMin} phút\n  Độ sâu TB    : ${avgDepth} / 5\n  Ngày hoạt động: ${new Set(f.map(s=>s.date)).size}\n\n${'='.repeat(50)}\n\nNHẬT KÝ INSIGHT\n\n`;
+    f.forEach((s,i)=>{
+      const ds=new Date(s.date+'T12:00:00').toLocaleDateString('vi-VN',{weekday:'long',day:'numeric',month:'long'});
+      txt+=`[${i+1}] ${s.book}\n    Ngày   : ${ds}\n    Loại   : ${s.type==='read'?'Đọc sách':'Nghe sách'}\n    Thời gian: ${s.dur||'?'} phút · Độ sâu: ${s.depth}/5\n`;
+      if(s.mindstate&&s.mindstate.length)txt+=`    Tâm trí : ${s.mindstate.join(', ')}\n`;
+      txt+=`    INSIGHT:\n      ${s.insight.replace(/\n/g,'\n      ')}\n`;
+      if(s.connection)txt+=`    KẾT NỐI:\n      ${s.connection.replace(/\n/g,'\n      ')}\n`;
+      txt+='\n';
+    });
+    return txt;
+  }
+  function exportInsightReport(){download(buildInsightReport(exportPeriod),`insight-report-${today()}.txt`,'text/plain;charset=utf-8;');showToast('Đã tải báo cáo ✓');}
+  function previewInsightReport(){const el=document.getElementById('insightPreview');const txt=buildInsightReport(exportPeriod);el.style.display='block';el.textContent=txt.slice(0,600)+(txt.length>600?'\n...(còn nữa)':'');}
+  function handleImport(e){
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{try{const data=JSON.parse(ev.target.result);const imported=data.sessions||(Array.isArray(data)?data:null);if(!imported){showToast('File không hợp lệ');return;}importBuffer=imported;const prev=document.getElementById('importPreview');prev.style.display='block';prev.textContent=`Tìm thấy ${imported.length} buổi đọc.\nXuất lúc: ${data.exported_at||'không rõ'}\n\n`+JSON.stringify(imported[0],null,2).slice(0,200);document.getElementById('importConfirmRow').style.display='flex';}catch{showToast('File JSON lỗi');}};
+    reader.readAsText(file);
+  }
+  function confirmImport(){if(!importBuffer)return;const ids=new Set(sessions.map(s=>s.id));const newS=importBuffer.filter(s=>!ids.has(s.id));sessions=[...sessions,...newS].sort((a,b)=>b.id-a.id);persist();renderTrack();showToast(`Đã import ${newS.length} buổi mới ✓`);cancelImport();}
+  function cancelImport(){importBuffer=null;document.getElementById('importPreview').style.display='none';document.getElementById('importConfirmRow').style.display='none';document.getElementById('importFile').value='';}
+  function generateStatsSummary(){
+    const reads=sessions.filter(s=>s.type==='read');const listens=sessions.filter(s=>s.type==='listen');
+    const totalMin=sessions.reduce((a,s)=>a+(s.dur||0),0);
+    const avgDepth=sessions.length?(sessions.reduce((a,s)=>a+s.depth,0)/sessions.length).toFixed(2):0;
+    const mmap={};sessions.forEach(s=>(s.mindstate||[]).forEach(m=>{if(!mmap[m])mmap[m]={total:0,count:0};mmap[m].total+=s.depth;mmap[m].count++;}));
+    const topMind=Object.entries(mmap).sort((a,b)=>(b[1].total/b[1].count)-(a[1].total/a[1].count)).slice(0,3).map(([m,d])=>`${m} (TB ${(d.total/d.count).toFixed(1)})`).join(', ');
+    const books=[...new Set(sessions.map(s=>s.book))];
+    const txt=`=== DEEP READING STATS SUMMARY ===\nTạo lúc: ${new Date().toLocaleString('vi-VN')}\n\nTỔNG QUAN:\n- Tổng buổi: ${sessions.length} (${reads.length} đọc · ${listens.length} nghe)\n- Tổng thời gian: ${totalMin} phút (${(totalMin/60).toFixed(1)} giờ)\n- Ngày có hoạt động: ${new Set(sessions.map(s=>s.date)).size}\n- Streak hiện tại: ${calcStreak()} ngày\n- Độ sâu trung bình: ${avgDepth} / 5\n\nSÁCH (${books.length} cuốn):\n${books.map(b=>`- ${b}`).join('\n')}\n\nTÂM TRẠNG → ĐỘ SÂU (top 3):\n${topMind||'Chưa có dữ liệu'}\n\nINSIGHT TIÊU BIỂU (3 buổi sâu nhất):\n${[...sessions].sort((a,b)=>b.depth-a.depth).slice(0,3).map(s=>`[${s.book}] ${s.insight.slice(0,100)}...`).join('\n')}`;
+    const el=document.getElementById('statsSummary');el.style.display='block';el.textContent=txt;document.getElementById('copyStatsBtnRow').style.display='block';
+  }
+  function copyStats(){navigator.clipboard.writeText(document.getElementById('statsSummary').textContent).then(()=>showToast('Đã copy ✓')).catch(()=>showToast('Copy thủ công nhé'));}
+  function clearAllData(){if(!confirm('Xoá TOÀN BỘ dữ liệu? Không thể hoàn tác.'))return;if(!confirm('Xác nhận lần cuối?'))return;sessions=[];persist();renderTrack();showToast('Đã xoá toàn bộ');}
+
+  function today(){return new Date().toISOString().split('T')[0];}
+  function download(content,filename,type){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+  renderTrack();
+
+  // Register Service Worker (PWA offline support)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
